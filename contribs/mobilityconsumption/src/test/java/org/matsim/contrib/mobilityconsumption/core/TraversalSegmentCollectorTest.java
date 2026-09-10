@@ -177,4 +177,53 @@ class TraversalSegmentCollectorTest {
 		assertThat(c.freeFlowTime(l1, 0, Double.POSITIVE_INFINITY)).isEqualTo(100.0);
 		assertThat(c.freeFlowTime(l1, 0, 3.0)).isEqualTo(332.0);
 	}
+
+	@Test
+	void strayEventsAreIgnored() {
+		TraversalSegmentCollector c = collector(CollectorSettings.CAR_DEFAULTS);
+		// Leave/enter/abort without a tracked leg.
+		c.handleEvent(new LinkLeaveEvent(5, V, L0));
+		c.handleEvent(new LinkEnterEvent(5, V, L1));
+		c.handleEvent(new VehicleLeavesTrafficEvent(6, D, L1, V, "car", 1.0));
+		c.handleEvent(new VehicleAbortsEvent(7, V, L1));
+		assertThat(segments).isEmpty();
+		assertThat(aborted.get()).isEqualTo(0);
+		// A link-leave on a link other than the open one is dropped, as is a leaves-traffic elsewhere.
+		c.handleEvent(new VehicleEntersTrafficEvent(10, D, L0, V, "car", 1.0));
+		c.handleEvent(new LinkLeaveEvent(11, V, L2));
+		c.handleEvent(new LinkEnterEvent(11, V, L1));
+		c.handleEvent(new VehicleLeavesTrafficEvent(12, D, L2, V, "car", 1.0));
+		assertThat(segments).isEmpty();
+		assertThat(c.vehiclesInTraffic()).isEqualTo(0);
+		// A vehicle switching to an excluded mode forgets its state.
+		c.handleEvent(new VehicleEntersTrafficEvent(20, D, L0, V, "car", 1.0));
+		c.handleEvent(new VehicleEntersTrafficEvent(21, D, L0, V, "bike", 1.0));
+		c.handleEvent(new LinkLeaveEvent(22, V, L0));
+		assertThat(segments).isEmpty();
+	}
+
+	@Test
+	void singleLinkLegWithoutDepartureSegmentsProducesNothing() {
+		TraversalSegmentCollector c = collector(new CollectorSettings(Set.of("car"), true, false, true,
+			VehicleLengthSource.fixed, 1.0));
+		c.handleEvent(new VehicleEntersTrafficEvent(10, D, L0, V, "car", 1.0));
+		c.handleEvent(new VehicleLeavesTrafficEvent(15, D, L0, V, "car", 1.0));
+		assertThat(segments).isEmpty();
+		// Arrival switched off: only the departure and full segments remain.
+		TraversalSegmentCollector d = collector(new CollectorSettings(Set.of("car"), true, true, false,
+			VehicleLengthSource.fixed, 1.0));
+		freeFlowLeg(d, "car");
+		assertThat(segments).extracting(TraversalSegment::kind)
+			.containsExactly(SegmentKind.DEPARTURE, SegmentKind.FULL);
+	}
+
+	@Test
+	void transitVehiclesAreKeptWhenNotExcluded() {
+		TraversalSegmentCollector c = collector(new CollectorSettings(Set.of("car"), false, true, true,
+			VehicleLengthSource.fixed, 1.0));
+		c.handleEvent(new TransitDriverStartsEvent(0, D, V, Id.create("line", TransitLine.class),
+			Id.create("route", TransitRoute.class), Id.create("dep", Departure.class)));
+		freeFlowLeg(c, "car");
+		assertThat(segments).hasSize(3);
+	}
 }
