@@ -50,7 +50,8 @@ import picocli.CommandLine;
 	produces = {MobilityConsumptionAnalysis.LINKS_DAILY, MobilityConsumptionAnalysis.LINKS_BINS,
 		MobilityConsumptionAnalysis.NETWORK_BINS, MobilityConsumptionAnalysis.STATS,
 		MobilityConsumptionAnalysis.UTILIZATION_WIDE, MobilityConsumptionAnalysis.EXCESS_RATIO_WIDE,
-		MobilityConsumptionAnalysis.CONSUMPTION_WIDE, MobilityConsumptionAnalysis.GRID})
+		MobilityConsumptionAnalysis.CONSUMPTION_WIDE, MobilityConsumptionAnalysis.GRID,
+		MobilityConsumptionAnalysis.TILES})
 public class MobilityConsumptionAnalysis implements MATSimAppCommand {
 
 	public static final String LINKS_DAILY = "mc_links_daily.csv";
@@ -61,6 +62,7 @@ public class MobilityConsumptionAnalysis implements MATSimAppCommand {
 	public static final String EXCESS_RATIO_WIDE = "mc_links_excess_ratio_wide.csv";
 	public static final String CONSUMPTION_WIDE = "mc_links_mc_wide.csv";
 	public static final String GRID = "mc_grid_bins.avro";
+	public static final String TILES = "mc_tiles.csv";
 
 	private static final Logger log = LogManager.getLogger(MobilityConsumptionAnalysis.class);
 
@@ -139,6 +141,7 @@ public class MobilityConsumptionAnalysis implements MATSimAppCommand {
 		writer.writeLinkBins(output.getPath(LINKS_BINS).toString(), accumulator, production);
 		writer.writeNetworkBins(output.getPath(NETWORK_BINS).toString(), accumulator, production);
 		writeStats(writer, accumulator, production);
+		writeTiles(accumulator, production);
 
 		WideTableWriter wide = new WideTableWriter(writer);
 		wide.write(output.getPath(UTILIZATION_WIDE).toString(), accumulator, production, WideTableWriter.UTILIZATION);
@@ -165,6 +168,32 @@ public class MobilityConsumptionAnalysis implements MATSimAppCommand {
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
+	}
+
+	/** Label, value and icon rows for SimWrapper's tile row. */
+	private void writeTiles(MobilityConsumptionAccumulator acc, MobilityProduction mp) {
+		List<Object> row = MobilityConsumptionWriter.statsRow(0, acc, mp);
+		String delimiterOverride = ",";
+		try (CSVPrinter printer = new MobilityConsumptionWriter(delimiterOverride).open(output.getPath(TILES).toString())) {
+			printer.printRecord("Mobility consumption [km·h]", format(row.get(2)), "road");
+			printer.printRecord("Excess consumption [km·h]", format(row.get(3)), "clock");
+			printer.printRecord("Excess ratio", format(row.get(4)), "percent");
+			printer.printRecord("Mobility production [km·h]", format(row.get(5)), "layer-group");
+			printer.printRecord("Consumption / production", format(row.get(6)), "gauge-high");
+			printer.printRecord("Vehicle-km", format(row.get(7)), "car");
+			printer.printRecord("Vehicle-h", format(row.get(8)), "hourglass-half");
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	static String format(Object value) {
+		if (value instanceof Number n) {
+			double d = n.doubleValue();
+			return Math.abs(d) >= 100 ? String.format(java.util.Locale.US, "%,.0f", d)
+				: String.format(java.util.Locale.US, "%.4f", d);
+		}
+		return String.valueOf(value);
 	}
 
 	/** Links inside the shape when one is given; null means all links. */

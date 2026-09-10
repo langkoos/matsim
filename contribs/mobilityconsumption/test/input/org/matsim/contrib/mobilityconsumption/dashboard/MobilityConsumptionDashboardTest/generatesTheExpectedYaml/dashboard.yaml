@@ -1,0 +1,210 @@
+header:
+  title: Mobility Consumption
+  description: "Road space-time consumed by car traffic (kilometre-hours), its congestion-related\
+    \ excess, and the share of the supplied road space-time that is used."
+layout:
+  tiles:
+  - type: tile
+    height: 0.1
+    dataset: analysis/mobilityconsumption/mc_tiles.csv
+  series:
+  - type: plotly
+    title: Utilisation by time of day
+    description: "Consumption over production per bin, all modes and per mode."
+    datasets:
+      dataset:
+        file: analysis/mobilityconsumption/mc_network_bins.csv
+        filter:
+          time:
+            invert: true
+            values:
+            - outside
+    traces:
+    - fill: none
+      "y": $dataset.utilization
+      x: $dataset.time
+      mode: lines
+      whiskerwidth: 0.0
+      type: scatter
+      name: $dataset.mode
+      colorRamp: Spectral
+    layout:
+      xaxis:
+        title: Time
+        color: "#444"
+        type: '-'
+      yaxis:
+        title: MC / MP
+        color: "#444"
+        type: '-'
+  - type: plotly
+    title: Excess ratio by time of day
+    description: Share of consumption caused by travel slower than free flow.
+    datasets:
+      dataset:
+        file: analysis/mobilityconsumption/mc_network_bins.csv
+        filter:
+          time:
+            invert: true
+            values:
+            - outside
+    traces:
+    - fill: none
+      "y": $dataset.excess_ratio
+      x: $dataset.time
+      mode: lines
+      whiskerwidth: 0.0
+      type: scatter
+      name: $dataset.mode
+      colorRamp: Spectral
+    layout:
+      xaxis:
+        title: Time
+        color: "#444"
+        type: '-'
+      yaxis:
+        title: Excess ratio
+        color: "#444"
+        type: '-'
+  - type: plotly
+    title: Consumption over iterations
+    description: Total and excess mobility consumption per iteration.
+    datasets:
+      dataset: (*.)?mobilityConsumption_stats.csv
+    traces:
+    - fill: none
+      "y": $dataset.mc_kmh
+      x: $dataset.iteration
+      mode: lines
+      whiskerwidth: 0.0
+      type: scatter
+      name: MC
+      original_name: MC
+    - fill: none
+      "y": $dataset.mc_excess_kmh
+      x: $dataset.iteration
+      mode: lines
+      whiskerwidth: 0.0
+      type: scatter
+      name: MC excess
+      original_name: MC excess
+    layout:
+      xaxis:
+        title: Iteration
+        color: "#444"
+        type: '-'
+      yaxis:
+        title: km·h
+        color: "#444"
+        type: '-'
+  map:
+  - type: map
+    title: Daily consumption per link
+    description: "Width: mobility consumption (km·h). Colour: excess ratio. Values\
+      \ are scaled by sample size. The shown values are scaled to represent 100 %\
+      \ based on a simulated sample size of 10%."
+    height: 12.0
+    datasets:
+      mc: analysis/mobilityconsumption/mc_links_daily.csv
+    display:
+      lineWidth:
+        dataset: mc
+        columnName: mc_kmh
+        join: link_id
+        scaleFactor: 50.0
+      lineColor:
+        dataset: mc
+        columnName: excess_ratio
+        join: link_id
+        colorRamp:
+          reverse: true
+          steps: 7
+          ramp: RdYlGn
+      fill: {}
+      fillHeight: {}
+      radius: {}
+    shapes:
+      join: id
+      file: analysis/network/network.avro
+  animated:
+  - type: links
+    title: Utilisation by time bin
+    description: Consumption over production per link and bin. Use the slider to step
+      through the day.
+    height: 12.0
+    network: analysis/network/network.avro
+    datasets:
+      csvFile: analysis/mobilityconsumption/mc_links_utilization_wide.csv
+    display:
+      color:
+        fixedColors: "#1f77b4"
+      width:
+        dataset: csvFile
+        columnName: 00:00
+        scaleFactor: 1
+    useSlider: true
+  - type: links
+    title: Excess ratio by time bin
+    description: "Share of each link's consumption caused by delay, per bin."
+    height: 12.0
+    network: analysis/network/network.avro
+    datasets:
+      csvFile: analysis/mobilityconsumption/mc_links_excess_ratio_wide.csv
+    display:
+      color:
+        fixedColors: "#d62728"
+      width:
+        dataset: csvFile
+        columnName: 00:00
+        scaleFactor: 1
+    useSlider: true
+  grid:
+  - type: gridmap
+    title: Consumption density by time bin
+    description: "Mobility consumption per grid cell and bin (km·h), links spread\
+      \ over the cells they cross."
+    height: 12.0
+    file: analysis/mobilityconsumption/mc_grid_bins.avro
+    projection: EPSG:25832
+    cellSize: 250
+    opacity: 0.1
+    maxHeight: 15
+    valueColumn: mc_kmh
+    diff: false
+    colorRamp:
+      reverse: false
+      steps: 8
+      ramp: Viridis
+    timeSelector: slider
+  scatter:
+  - type: plotly
+    title: Utilisation versus excess ratio per link
+    description: Each point is a link over the whole day (figure 5 of Ai et al.).
+    datasets:
+      dataset: analysis/mobilityconsumption/mc_links_daily.csv
+    traces:
+    - fill: none
+      "y": $dataset.excess_ratio
+      x: $dataset.utilization
+      mode: markers
+      whiskerwidth: 0.0
+      type: scatter
+      text: $dataset.link_id
+    layout:
+      xaxis:
+        title: Utilisation MC / MP
+        color: "#444"
+        type: '-'
+      yaxis:
+        title: Excess ratio
+        color: "#444"
+        type: '-'
+  notes:
+  - type: text
+    backgroundColor: transparent
+    content: |
+      ### Definitions
+      - Mobility consumption of a link traversal is `lambda * T + tau * D` with `T` the time on the link, `D` the distance, `lambda` the road space one vehicle occupies (4.87 m + 6.25 m spacing) and `tau` the reaction time (1.23 s); reported in kilometre-hours (Bliemer, Loder and Zheng 2024).
+      - Excess consumption is `max(lambda * (T - T0), 0)` with `T0` the free-flow time of the same traversal; the excess ratio is excess over consumption.
+      - Mobility production is the road space-time supplied: length × lanes × time. Utilisation is consumption over production. Consumption is scaled to the full population by the sample size; production is not.
+      - Time bins are 15 minutes unless configured otherwise. The wide tables behind the animated maps have one column per bin.

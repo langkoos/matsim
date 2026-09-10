@@ -60,4 +60,21 @@ class MobilityConsumptionControllerListenerTest {
 		assertThat(listener.getProduction().getParameters().sampleSize()).isEqualTo(0.5);
 		assertThat(listener.getAccumulator().network().totalSegments()).isGreaterThan(0);
 	}
+
+	@Test
+	void shutdownBeforeAnyWrittenIterationDoesNothing() {
+		Config config = ConfigUtils.createConfig();
+		config.controller().setOutputDirectory(utils.getOutputDirectory());
+		ConfigUtils.addOrGetModule(config, MobilityConsumptionConfigGroup.class);
+		org.matsim.api.core.v01.Scenario scenario = org.matsim.core.scenario.ScenarioUtils.createScenario(config);
+		OutputDirectoryHierarchy io = new OutputDirectoryHierarchy(utils.getOutputDirectory(),
+			OutputDirectoryHierarchy.OverwriteFileSetting.deleteDirectoryIfExists,
+			config.controller().getCompressionType());
+		MobilityConsumptionControllerListener listener = new MobilityConsumptionControllerListener(config,
+			new org.matsim.contrib.mobilityconsumption.core.MobilityConsumptionAccumulator(
+				org.matsim.contrib.mobilityconsumption.core.MobilityConsumptionParameters.DEFAULTS),
+			scenario, io);
+		listener.notifyShutdown(new org.matsim.core.controler.events.ShutdownEvent(null, false, 0, null));
+		assertThat(Path.of(utils.getOutputDirectory(), "output_mobilityConsumption_stats.csv")).doesNotExist();
+	}
 }

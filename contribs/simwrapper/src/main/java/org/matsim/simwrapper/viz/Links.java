@@ -35,6 +35,17 @@ public class Links extends VizMap<Links> {
 	 */
 	public Display display = new Display();
 
+	/**
+	 * Show a time-of-day slider that steps through the dataset's columns (after the link id column) instead of a
+	 * column picker. Name the columns by their bin start time, e.g. {@code 00:00, 00:15, ...}.
+	 */
+	public Boolean useSlider;
+
+	/**
+	 * Start with the difference {@code csvFile - csvBase} displayed; requires {@code datasets.csvBase}.
+	 */
+	public Boolean showDifferences;
+
 	public Links() {
 		super("links");
 	}

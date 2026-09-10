@@ -1,0 +1,7 @@
+Mobility consumption [km·h],3.2204,road
+Excess consumption [km·h],0.0503,clock
+Excess ratio,0.0156,percent
+Mobility production [km·h],"5,040",layer-group
+Consumption / production,0.0006,gauge-high
+Vehicle-km,"7,000",car
+Vehicle-h,74.5225,hourglass-half

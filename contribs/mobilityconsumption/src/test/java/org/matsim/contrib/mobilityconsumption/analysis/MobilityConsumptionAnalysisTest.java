@@ -60,6 +60,7 @@ class MobilityConsumptionAnalysisTest {
 		new MobilityConsumptionAnalysis().execute(
 			"--events", run + "output_events.xml.gz",
 			"--network", run + "output_network.xml.gz",
+			"--vehicles", run + "output_vehicles.xml.gz",
 			"--sample-size", "0.1",
 			"--grid-size", "500",
 			"--output-mc-links-daily", out + "mc_links_daily.csv",
@@ -69,7 +70,13 @@ class MobilityConsumptionAnalysisTest {
 			"--output-mc-links-utilization-wide", out + "mc_links_utilization_wide.csv",
 			"--output-mc-links-excess-ratio-wide", out + "mc_links_excess_ratio_wide.csv",
 			"--output-mc-links-mc-wide", out + "mc_links_mc_wide.csv",
-			"--output-mc-grid-bins", out + "mc_grid_bins.avro");
+			"--output-mc-grid-bins", out + "mc_grid_bins.avro",
+			"--output-mc-tiles", out + "mc_tiles.csv");
+
+		List<String> tiles = Files.readAllLines(Path.of(out, "mc_tiles.csv"));
+		assertThat(tiles).hasSize(7);
+		assertThat(tiles.get(0)).startsWith("Mobility consumption [km·h],");
+		assertThat(tiles.get(2)).matches("Excess ratio,0\\.\\d{4},percent");
 
 		CSVRecord inRun = read(Path.of(run, "output_mobilityConsumption_stats.csv")).get(0);
 		CSVRecord postHoc = read(Path.of(out, "mc_stats.csv")).get(0);
@@ -109,7 +116,7 @@ class MobilityConsumptionAnalysisTest {
 		new MobilityConsumptionAnalysis().execute(
 			"--events", run + "output_events.xml.gz",
 			"--network", run + "output_network.xml.gz",
-			"--vehicles", run + "output_vehicles.xml.gz",
+			"--vehicles", emptyVehiclesFile(),
 			"--sample-size", "1",
 			"--grid-size", "0",
 			"--time-bin-size", "3600",
@@ -133,6 +140,21 @@ class MobilityConsumptionAnalysisTest {
 		assertThat(Double.parseDouble(stats.get(1).split(",")[2])).isGreaterThan(0);
 	}
 
+	private String emptyVehiclesFile() {
+		String file = utils.getOutputDirectory() + "no-vehicles.xml";
+		org.matsim.vehicles.Vehicles vehicles = org.matsim.vehicles.VehicleUtils.createVehiclesContainer();
+		vehicles.addVehicleType(org.matsim.vehicles.VehicleUtils.createDefaultVehicleType()); // a type, no vehicles
+		new org.matsim.vehicles.MatsimVehicleWriter(vehicles).writeFile(file);
+		return file;
+	}
+
+	@Test
+	void tileFormatting() {
+		assertThat(MobilityConsumptionAnalysis.format(1234.5)).isEqualTo("1,235");
+		assertThat(MobilityConsumptionAnalysis.format(0.123456)).isEqualTo("0.1235");
+		assertThat(MobilityConsumptionAnalysis.format("")).isEmpty();
+	}
+
 	/** A shape restricts the accounted links; the west half of equil loses the links east of x = -5000. */
 	@Test
 	void shapeFilterKeepsOnlyLinksInsideThePolygon() throws IOException {
@@ -144,6 +166,7 @@ class MobilityConsumptionAnalysisTest {
 		config.controller().setCompressionType(ControllerConfigGroup.CompressionType.gzip);
 		config.controller().setCreateGraphs(false);
 		config.controller().setWriteEventsInterval(1);
+		config.global().setCoordinateSystem("EPSG:25832"); // a resolvable CRS: the shape is transformed into it
 		new org.matsim.core.controler.Controler(config).run();
 
 		String shape = utils.getOutputDirectory() + "west.shp";
@@ -155,10 +178,15 @@ class MobilityConsumptionAnalysisTest {
 
 		String all = utils.getOutputDirectory() + "all/";
 		String west = utils.getOutputDirectory() + "west/";
-		for (String dir : List.of(all, west)) {
+		String noCrs = utils.getOutputDirectory() + "nocrs/";
+		for (String dir : List.of(all, west, noCrs)) {
+			// The shipped network carries no CRS attribute: the shape is then assumed to share its coordinates.
+			String network = dir.equals(noCrs)
+				? IOUtils.extendUrl(ExamplesUtils.getTestScenarioURL("equil"), "network.xml").toString()
+				: run + "output_network.xml.gz";
 			List<String> args = new java.util.ArrayList<>(List.of(
 				"--events", run + "output_events.xml.gz",
-				"--network", run + "output_network.xml.gz",
+				"--network", network,
 				"--sample-size", "1", "--grid-size", "0",
 				"--output-mc-links-daily", dir + "mc_links_daily.csv",
 				"--output-mc-links-bins", dir + "mc_links_bins.csv",
@@ -167,8 +195,9 @@ class MobilityConsumptionAnalysisTest {
 				"--output-mc-links-utilization-wide", dir + "mc_links_utilization_wide.csv",
 				"--output-mc-links-excess-ratio-wide", dir + "mc_links_excess_ratio_wide.csv",
 				"--output-mc-links-mc-wide", dir + "mc_links_mc_wide.csv",
-				"--output-mc-grid-bins", dir + "mc_grid_bins.avro"));
-			if (dir.equals(west)) {
+				"--output-mc-grid-bins", dir + "mc_grid_bins.avro",
+				"--output-mc-tiles", dir + "mc_tiles.csv"));
+			if (!dir.equals(all)) {
 				args.add("--shp");
 				args.add(shape);
 				args.add("--shp-crs");
@@ -184,5 +213,6 @@ class MobilityConsumptionAnalysisTest {
 		assertThat(westLinks).allSatisfy(r -> assertThat(Integer.parseInt(r.get("link_id")))
 			.isIn(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 22, 23));
 		assertThat(allLinks).anySatisfy(r -> assertThat(r.get("link_id")).isEqualTo("20"));
+		assertThat(read(Path.of(noCrs, "mc_links_daily.csv"))).hasSameSizeAs(westLinks);
 	}
 }

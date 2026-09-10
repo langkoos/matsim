@@ -98,6 +98,11 @@ class MobilityConsumptionWriterTest {
 		assertThat(net2.get(1).get("mc_kmh")).isEqualTo("0.0");
 		assertThat(net2.get(1).get("excess_ratio")).isEmpty();
 
+		MobilityConsumptionAccumulator inside = new MobilityConsumptionAccumulator(P);
+		inside.add(seg("ab", 0, 100, 1000, 100));
+		w.writeNetworkBins(dir + "net-inside.csv", inside, mp);
+		assertThat(read(dir + "net-inside.csv")).hasSize(4); // two bins for 'all' and for 'car', no outside row
+
 		List<Object> stats = MobilityConsumptionWriter.statsRow(3, acc, mp);
 		assertThat(stats).hasSize(MobilityConsumptionWriter.STATS_HEADER.size());
 		assertThat(stats.get(0)).isEqualTo(3);
