@@ -54,6 +54,9 @@ class MobilityConsumptionControllerListenerTest {
 			controler.getInjector().getInstance(MobilityConsumptionControllerListener.class);
 		assertThat(listener.isWrittenIteration(3, false)).isFalse();
 		assertThat(listener.isWrittenIteration(3, true)).isTrue();
+		group.setWriteInterval(2);
+		assertThat(listener.isWrittenIteration(3, false)).isFalse();
+		assertThat(listener.isWrittenIteration(4, false)).isTrue();
 		assertThat(listener.getProduction().getParameters().sampleSize()).isEqualTo(0.5);
 		assertThat(listener.getAccumulator().network().totalSegments()).isGreaterThan(0);
 	}

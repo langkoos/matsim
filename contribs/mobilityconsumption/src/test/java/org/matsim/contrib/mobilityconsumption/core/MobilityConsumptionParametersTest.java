@@ -49,6 +49,10 @@ class MobilityConsumptionParametersTest {
 	void rejectsInvalidValues() {
 		assertThatThrownBy(() -> new MobilityConsumptionParameters(-1, 6.25, 1.23, 900, 0, 86400, 1.0))
 			.isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> new MobilityConsumptionParameters(4.87, -1, 1.23, 900, 0, 86400, 1.0))
+			.isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> new MobilityConsumptionParameters(4.87, 6.25, -1, 900, 0, 86400, 1.0))
+			.isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> new MobilityConsumptionParameters(4.87, 6.25, 1.23, 0, 0, 86400, 1.0))
 			.isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> new MobilityConsumptionParameters(4.87, 6.25, 1.23, 900, 100, 100, 1.0))

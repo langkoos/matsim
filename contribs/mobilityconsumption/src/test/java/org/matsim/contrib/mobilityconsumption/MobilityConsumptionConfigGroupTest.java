@@ -28,6 +28,8 @@ class MobilityConsumptionConfigGroupTest {
 		config.qsim().setFlowCapFactor(0.1);
 		assertThat(group.resolveSampleSize(config)).isEqualTo(0.1);
 
+		ConfigUtils.addOrGetModule(config, SimWrapperConfigGroup.class).setSampleSize(null);
+		assertThat(group.resolveSampleSize(config)).isEqualTo(0.1);
 		ConfigUtils.addOrGetModule(config, SimWrapperConfigGroup.class).setSampleSize(0.25);
 		assertThat(group.resolveSampleSize(config)).isEqualTo(0.25);
 
@@ -84,5 +86,43 @@ class MobilityConsumptionConfigGroupTest {
 		assertThat(back.isWriteSegments()).isTrue();
 		assertThat(back.getVehicleLengthSource()).isEqualTo(VehicleLengthSource.vehicleType);
 		assertThat(back.getWriteInterval()).isEqualTo(10);
+	}
+
+	@Test
+	void settersAndGettersRoundTrip() {
+		MobilityConsumptionConfigGroup g = new MobilityConsumptionConfigGroup();
+		g.setVehicleLength(5);
+		g.setVehicleSpacing(6);
+		g.setReactionTime(1.5);
+		g.setAnalysisStart(3600);
+		g.setAnalysisEnd(7200);
+		g.setExcludeTransitVehicles(false);
+		g.setIncludeArrivalSegments(false);
+		g.setWriteInterval(3);
+		assertThat(g.getVehicleLength()).isEqualTo(5);
+		assertThat(g.getVehicleSpacing()).isEqualTo(6);
+		assertThat(g.getReactionTime()).isEqualTo(1.5);
+		assertThat(g.getAnalysisStart()).isEqualTo(3600);
+		assertThat(g.getAnalysisEnd()).isEqualTo(7200);
+		assertThat(g.isExcludeTransitVehicles()).isFalse();
+		assertThat(g.isIncludeArrivalSegments()).isFalse();
+		assertThat(g.isIncludeDepartureSegments()).isTrue();
+		assertThat(g.getWriteInterval()).isEqualTo(3);
+		assertThat(g.getSampleSize()).isNull();
+		Config config = ConfigUtils.createConfig();
+		assertThat(g.toParameters(config).lambda()).isEqualTo(11);
+	}
+
+	@Test
+	void vehicleTypeLookupFindsScenarioVehicles() {
+		org.matsim.api.core.v01.Scenario scenario = org.matsim.core.scenario.ScenarioUtils.createScenario(ConfigUtils.createConfig());
+		org.matsim.vehicles.VehicleType type = org.matsim.vehicles.VehicleUtils.createVehicleType(
+			org.matsim.api.core.v01.Id.create("t", org.matsim.vehicles.VehicleType.class));
+		scenario.getVehicles().addVehicleType(type);
+		scenario.getVehicles().addVehicle(org.matsim.vehicles.VehicleUtils.createVehicle(
+			org.matsim.api.core.v01.Id.create("v", org.matsim.vehicles.Vehicle.class), type));
+		var lookup = MobilityConsumptionModule.vehicleTypeLookup(scenario);
+		assertThat(lookup.apply(org.matsim.api.core.v01.Id.create("v", org.matsim.vehicles.Vehicle.class))).isSameAs(type);
+		assertThat(lookup.apply(org.matsim.api.core.v01.Id.create("missing", org.matsim.vehicles.Vehicle.class))).isNull();
 	}
 }

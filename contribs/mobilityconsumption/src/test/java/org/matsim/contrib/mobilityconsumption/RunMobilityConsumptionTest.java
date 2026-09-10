@@ -34,24 +34,24 @@ class RunMobilityConsumptionTest {
 			new MobilityConsumptionConfigGroup());
 		config.controller().setOutputDirectory(utils.getOutputDirectory());
 		config.controller().setOverwriteFileSetting(OutputDirectoryHierarchy.OverwriteFileSetting.deleteDirectoryIfExists);
-		config.controller().setLastIteration(1);
+		config.controller().setLastIteration(2);
 		config.controller().setCompressionType(ControllerConfigGroup.CompressionType.gzip);
 		config.controller().setCreateGraphs(false);
 		config.controller().setWriteEventsInterval(1);
 		config.qsim().setFlowCapFactor(0.1);
 		config.qsim().setStorageCapFactor(0.1);
 		MobilityConsumptionConfigGroup group = ConfigUtils.addOrGetModule(config, MobilityConsumptionConfigGroup.class);
-		group.setWriteInterval(1);
+		group.setWriteInterval(2);
 		group.setWriteSegments(true);
 
 		Controler controler = RunMobilityConsumption.prepare(config);
 		controler.run();
 
 		Path out = Path.of(utils.getOutputDirectory());
-		assertThat(out.resolve("ITERS/it.1/1.mobilityConsumption_links.csv.gz")).exists();
-		assertThat(out.resolve("ITERS/it.1/1.mobilityConsumption_links_bins.csv.gz")).exists();
-		assertThat(out.resolve("ITERS/it.1/1.mobilityConsumption_network_bins.csv")).exists();
-		assertThat(out.resolve("ITERS/it.1/1.mobilityConsumption_segments.csv.gz")).exists();
+		assertThat(out.resolve("ITERS/it.2/2.mobilityConsumption_links.csv.gz")).exists();
+		assertThat(out.resolve("ITERS/it.2/2.mobilityConsumption_links_bins.csv.gz")).exists();
+		assertThat(out.resolve("ITERS/it.2/2.mobilityConsumption_network_bins.csv")).exists();
+		assertThat(out.resolve("ITERS/it.2/2.mobilityConsumption_segments.csv.gz")).exists();
 		assertThat(out.resolve("output_mobilityConsumption_links.csv.gz")).exists();
 		assertThat(out.resolve("output_mobilityConsumption_links_bins.csv.gz")).exists();
 		assertThat(out.resolve("output_mobilityConsumption_network_bins.csv")).exists();
@@ -59,9 +59,11 @@ class RunMobilityConsumptionTest {
 		assertThat(out.resolve("output_mobilityConsumption_stats.csv")).exists();
 
 		List<CSVRecord> stats = read(out.resolve("mobilityConsumption_stats.csv"));
-		assertThat(stats).hasSize(2);
-		CSVRecord last = stats.get(1);
-		assertThat(last.get("iteration")).isEqualTo("1");
+		assertThat(stats).hasSize(3);
+		CSVRecord last = stats.get(2);
+		assertThat(last.get("iteration")).isEqualTo("2");
+		assertThat(out.resolve("ITERS/it.1/1.mobilityConsumption_links.csv.gz")).doesNotExist();
+		assertThat(out.resolve("ITERS/it.1/1.mobilityConsumption_segments.csv.gz")).doesNotExist();
 		assertThat(Double.parseDouble(last.get("sample_size"))).isEqualTo(0.1);
 		double mc = Double.parseDouble(last.get("mc_kmh"));
 		double excess = Double.parseDouble(last.get("mc_excess_kmh"));
@@ -113,5 +115,30 @@ class RunMobilityConsumptionTest {
 			.parse(IOUtils.getBufferedReader(path.toString()))) {
 			return parser.getRecords();
 		}
+	}
+
+	@Test
+	void mainRunsFromAConfigFile() {
+		Config config = ConfigUtils.loadConfig(IOUtils.extendUrl(ExamplesUtils.getTestScenarioURL("equil"), "config.xml"),
+			new MobilityConsumptionConfigGroup());
+		config.controller().setOutputDirectory(utils.getOutputDirectory() + "run/");
+		config.controller().setOverwriteFileSetting(OutputDirectoryHierarchy.OverwriteFileSetting.deleteDirectoryIfExists);
+		config.controller().setLastIteration(0);
+		config.controller().setCreateGraphs(false);
+		config.controller().setWriteEventsInterval(0);
+		config.controller().setWritePlansInterval(0);
+		config.controller().setDumpDataAtEnd(false);
+		ConfigUtils.addOrGetModule(config, MobilityConsumptionConfigGroup.class).setTimeBinSize(7200);
+		// The written config lives elsewhere, so the inputs must be absolute.
+		java.net.URL scenario = ExamplesUtils.getTestScenarioURL("equil");
+		config.network().setInputFile(IOUtils.extendUrl(scenario, "network.xml").toString());
+		config.plans().setInputFile(IOUtils.extendUrl(scenario, "plans100.xml").toString());
+		config.facilities().setInputFile(IOUtils.extendUrl(scenario, "facilities.xml").toString());
+		String file = utils.getOutputDirectory() + "config.xml";
+		new org.matsim.core.config.ConfigWriter(config).write(file);
+
+		RunMobilityConsumption.main(new String[]{file});
+
+		assertThat(Path.of(utils.getOutputDirectory(), "run", "output_mobilityConsumption_stats.csv")).exists();
 	}
 }

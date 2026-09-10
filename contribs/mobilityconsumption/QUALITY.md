@@ -60,8 +60,8 @@ historic debt to be repaired in this setup change:
 - SpotBugs reports only high-priority findings at minimum analysis effort. Its
   local filter is empty; any exclusion added must be narrow and documented.
 - Tests permit no failures.
-- JaCoCo requires at least 88% line coverage and 85% branch coverage. The
-  first suite measured 90.42% line coverage and 87.04% branch coverage on
+- JaCoCo requires at least 93% line coverage and 93% branch coverage. The
+  suite measured 95.07% line coverage and 96.46% branch coverage on
   Java 25 (2026-09-10).
 
 In addition, `quality/metrics-baseline.properties` records a comparable quality

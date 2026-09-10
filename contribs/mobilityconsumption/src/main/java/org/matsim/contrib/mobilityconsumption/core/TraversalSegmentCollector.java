@@ -104,7 +104,8 @@ public final class TraversalSegmentCollector implements VehicleEntersTrafficEven
 	@Override
 	public void handleEvent(VehicleEntersTrafficEvent event) {
 		Id<Vehicle> vehicleId = event.getVehicleId();
-		if (!settings.networkModes().contains(event.getNetworkMode()) || transitVehicles.contains(vehicleId)) {
+		String mode = event.getNetworkMode();
+		if (mode == null || !settings.networkModes().contains(mode) || transitVehicles.contains(vehicleId)) {
 			legs.remove(vehicleId);
 			open.remove(vehicleId);
 			return;

@@ -62,6 +62,8 @@ class MobilityConsumptionWriterTest {
 		acc.add(seg("ab", 0, 100, 1000, 100));
 		acc.add(seg("ab", 2000, 2100, 1000, 100)); // after the window: outside bin
 		acc.add(seg("zz", 0, 50, 500, 50)); // link not in the network
+		acc.add(new TraversalSegment(Id.createLinkId("ab"), Id.create("v", Vehicle.class), null, "car",
+			SegmentKind.DEPARTURE, 5000, 5000, 0, 0, P.lambda())); // zero consumption outside the window
 		Network net = network();
 		MobilityProduction mp = new MobilityProduction(net, P);
 		MobilityConsumptionWriter w = new MobilityConsumptionWriter(";");
@@ -76,7 +78,7 @@ class MobilityConsumptionWriterTest {
 		double expectedMc = 2 * (acc.getCalculator().consumption(seg("ab", 0, 100, 1000, 100)) * 2) / 3.6e6;
 		assertThat(Double.parseDouble(ab.get("mc_kmh"))).isEqualTo(expectedMc);
 		assertThat(Double.parseDouble(ab.get("mp_kmh"))).isEqualTo(1000 * 2 * 1800 / 3.6e6);
-		assertThat(ab.get("segments")).isEqualTo("2");
+		assertThat(ab.get("segments")).isEqualTo("3");
 		CSVRecord zz = links.get(1);
 		assertThat(zz.get("length_m")).isEmpty();
 		assertThat(zz.get("utilization")).isEmpty(); // no production known for the link

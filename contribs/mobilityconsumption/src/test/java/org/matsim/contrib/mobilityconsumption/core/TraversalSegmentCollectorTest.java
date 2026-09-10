@@ -195,6 +195,10 @@ class TraversalSegmentCollectorTest {
 		c.handleEvent(new VehicleLeavesTrafficEvent(12, D, L2, V, "car", 1.0));
 		assertThat(segments).isEmpty();
 		assertThat(c.vehiclesInTraffic()).isEqualTo(0);
+		// Old event files carry no network mode: such vehicles are ignored rather than crashing the run.
+		c.handleEvent(new VehicleEntersTrafficEvent(18, D, L0, V, null, 1.0));
+		c.handleEvent(new LinkLeaveEvent(19, V, L0));
+		assertThat(segments).isEmpty();
 		// A vehicle switching to an excluded mode forgets its state.
 		c.handleEvent(new VehicleEntersTrafficEvent(20, D, L0, V, "car", 1.0));
 		c.handleEvent(new VehicleEntersTrafficEvent(21, D, L0, V, "bike", 1.0));
@@ -225,5 +229,14 @@ class TraversalSegmentCollectorTest {
 			Id.create("route", TransitRoute.class), Id.create("dep", Departure.class)));
 		freeFlowLeg(c, "car");
 		assertThat(segments).hasSize(3);
+	}
+
+	@Test
+	void unknownVehicleTypeFallsBackToFixedLambda() {
+		TraversalSegmentCollector c = collector(new CollectorSettings(Set.of("car"), true, true, true,
+			VehicleLengthSource.vehicleType, 1.0));
+		freeFlowLeg(c, "car");
+		assertThat(segments.get(1).spaceOccupied()).isCloseTo(11.12, within(1e-9));
+		assertThat(segments.get(1).freeFlowTime()).isEqualTo(101.0);
 	}
 }
