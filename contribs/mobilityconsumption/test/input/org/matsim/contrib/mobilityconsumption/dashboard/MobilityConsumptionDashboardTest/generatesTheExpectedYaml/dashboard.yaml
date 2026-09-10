@@ -140,8 +140,8 @@ layout:
         fixedColors: "#1f77b4"
       width:
         dataset: csvFile
-        columnName: 00:00
-        scaleFactor: 1
+        columnName: 08:00
+        scaleFactor: 0.02
     useSlider: true
   - type: links
     title: Excess ratio by time bin
@@ -155,8 +155,8 @@ layout:
         fixedColors: "#d62728"
       width:
         dataset: csvFile
-        columnName: 00:00
-        scaleFactor: 1
+        columnName: 08:00
+        scaleFactor: 0.02
     useSlider: true
   grid:
   - type: gridmap
@@ -170,6 +170,7 @@ layout:
     opacity: 0.1
     maxHeight: 15
     valueColumn: mc_kmh
+    opacityColumn: mc_kmh
     diff: false
     colorRamp:
       reverse: false

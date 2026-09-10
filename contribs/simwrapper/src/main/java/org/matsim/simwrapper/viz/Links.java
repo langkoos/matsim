@@ -26,6 +26,11 @@ public class Links extends VizMap<Links> {
 	public double[] center;
 
 	/**
+	 * Sets the initial zoom level of the map.
+	 */
+	public Double zoom;
+
+	/**
 	 * Set to true for this map to have independent center/zoom/motion
 	 */
 	public Boolean mapIsIndependent;
@@ -84,7 +89,8 @@ public class Links extends VizMap<Links> {
 			@JsonProperty(required = true)
 			public String columnName;
 
-			public Integer scaleFactor;
+			/** Values are divided by this factor to get pixels (clamped by the plugin to 0.25 to 50 px). */
+			public Double scaleFactor;
 
 		}
 

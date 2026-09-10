@@ -9,7 +9,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.matsim.application.ApplicationUtils;
 import org.matsim.application.MATSimAppCommand;
+import org.matsim.contrib.mobilityconsumption.MobilityConsumptionConfigGroup;
 import org.matsim.contrib.mobilityconsumption.MobilityConsumptionControllerListener;
+import org.matsim.contrib.mobilityconsumption.core.MobilityConsumptionParameters;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.simwrapper.SimWrapper;
@@ -57,7 +59,10 @@ public final class CreateMobilityConsumptionDashboard implements MATSimAppComman
 			}
 			SimWrapper sw = SimWrapper.create(config);
 			boolean withSeries = hasStatsFile(runDirectory);
-			sw.addDashboard(new MobilityConsumptionDashboard(config.global().getCoordinateSystem(), withSeries));
+			double binSize = ConfigUtils.hasModule(config, MobilityConsumptionConfigGroup.class)
+				? ConfigUtils.addOrGetModule(config, MobilityConsumptionConfigGroup.class).getTimeBinSize()
+				: MobilityConsumptionParameters.DEFAULTS.timeBinSize();
+			sw.addDashboard(new MobilityConsumptionDashboard(config.global().getCoordinateSystem(), withSeries, binSize));
 			try {
 				sw.generate(runDirectory, true);
 				sw.run(runDirectory);

@@ -20,7 +20,8 @@ public final class MobilityConsumptionDashboardProvider implements DashboardProv
 		if (!ConfigUtils.hasModule(config, MobilityConsumptionConfigGroup.class)) {
 			return List.of();
 		}
-		return List.of(new MobilityConsumptionDashboard(config.global().getCoordinateSystem(), true));
+		MobilityConsumptionConfigGroup group = ConfigUtils.addOrGetModule(config, MobilityConsumptionConfigGroup.class);
+		return List.of(new MobilityConsumptionDashboard(config.global().getCoordinateSystem(), true, group.getTimeBinSize()));
 	}
 
 	@Override

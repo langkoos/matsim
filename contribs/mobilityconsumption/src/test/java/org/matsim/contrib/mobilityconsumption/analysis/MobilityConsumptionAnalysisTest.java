@@ -74,7 +74,7 @@ class MobilityConsumptionAnalysisTest {
 			"--output-mc-tiles", out + "mc_tiles.csv");
 
 		List<String> tiles = Files.readAllLines(Path.of(out, "mc_tiles.csv"));
-		assertThat(tiles).hasSize(7);
+		assertThat(tiles).hasSize(6);
 		assertThat(tiles.get(0)).startsWith("Mobility consumption [km·h],");
 		assertThat(tiles.get(2)).matches("Excess ratio,0\\.\\d{4},percent");
 
@@ -93,7 +93,7 @@ class MobilityConsumptionAnalysisTest {
 
 		List<String> wide = Files.readAllLines(Path.of(out, "mc_links_utilization_wide.csv"));
 		assertThat(wide.get(0).split(";")).hasSize(97).startsWith("link_id", "00:00", "00:15").endsWith("23:45");
-		assertThat(wide).hasSize(postHocLinks.size() + 1);
+		assertThat(wide).hasSize(24); // one row per network link (23 in equil), even without traffic
 		assertThat(Path.of(out, "mc_links_excess_ratio_wide.csv")).exists();
 		assertThat(Path.of(out, "mc_links_mc_wide.csv")).exists();
 		assertThat(Path.of(out, "mc_grid_bins.avro")).exists();
@@ -214,5 +214,11 @@ class MobilityConsumptionAnalysisTest {
 			.isIn(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 22, 23));
 		assertThat(allLinks).anySatisfy(r -> assertThat(r.get("link_id")).isEqualTo("20"));
 		assertThat(read(Path.of(noCrs, "mc_links_daily.csv"))).hasSameSizeAs(westLinks);
+
+		// The dashboard CLI also works on a run without the config module and without the stats file.
+		org.matsim.contrib.mobilityconsumption.dashboard.CreateMobilityConsumptionDashboard.main(
+			new String[]{"--sample-size", "1", run});
+		String yaml = Files.readString(Path.of(run, "dashboard-1.yaml"));
+		assertThat(yaml).contains("mc_links_utilization_wide.csv").doesNotContain("Consumption over iterations");
 	}
 }

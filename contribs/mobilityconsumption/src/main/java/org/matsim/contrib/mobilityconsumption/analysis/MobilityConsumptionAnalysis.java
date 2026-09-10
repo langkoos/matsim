@@ -181,7 +181,6 @@ public class MobilityConsumptionAnalysis implements MATSimAppCommand {
 			printer.printRecord("Mobility production [km·h]", format(row.get(5)), "layer-group");
 			printer.printRecord("Consumption / production", format(row.get(6)), "gauge-high");
 			printer.printRecord("Vehicle-km", format(row.get(7)), "car");
-			printer.printRecord("Vehicle-h", format(row.get(8)), "hourglass-half");
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}

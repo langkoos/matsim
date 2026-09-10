@@ -78,6 +78,12 @@ public class GridMap extends VizMap<GridMap> {
 	public String valueColumn;
 
 	/**
+	 * Column (data series) whose values set each cell's opacity; cells with value 0 are hidden. Use the value column
+	 * itself to hide empty cells of a dense raster.
+	 */
+	public String opacityColumn;
+
+	/**
 	 * The secondValueColumn defines the column to compare with valueColumn for difference plot.
 	 */
 	public String secondValueColumn;

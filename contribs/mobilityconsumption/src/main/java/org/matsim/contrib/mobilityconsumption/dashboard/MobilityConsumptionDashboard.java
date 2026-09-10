@@ -3,7 +3,9 @@ package org.matsim.contrib.mobilityconsumption.dashboard;
 import org.matsim.application.prepare.network.CreateAvroNetwork;
 import org.matsim.contrib.mobilityconsumption.MobilityConsumptionControllerListener;
 import org.matsim.contrib.mobilityconsumption.analysis.MobilityConsumptionAnalysis;
+import org.matsim.contrib.mobilityconsumption.core.MobilityConsumptionParameters;
 import org.matsim.contrib.mobilityconsumption.io.GridRasterWriter;
+import org.matsim.core.utils.misc.Time;
 import org.matsim.simwrapper.Dashboard;
 import org.matsim.simwrapper.DashboardUtils;
 import org.matsim.simwrapper.Header;
@@ -26,16 +28,32 @@ import tech.tablesaw.plotly.traces.ScatterTrace;
  */
 public final class MobilityConsumptionDashboard implements Dashboard {
 
+	/** Time of day the animated maps open at; the morning peak shows more than midnight. */
+	public static final double INITIAL_TIME = 8 * 3600;
+
 	private final String coordinateSystem;
 	private final boolean withIterationSeries;
+	private final double timeBinSize;
 
 	/**
 	 * @param coordinateSystem    CRS of the network, for the grid map
 	 * @param withIterationSeries include the per-iteration series the controller listener writes
+	 * @param timeBinSize         bin width in seconds, to name the column the animated maps open at
 	 */
-	public MobilityConsumptionDashboard(String coordinateSystem, boolean withIterationSeries) {
+	public MobilityConsumptionDashboard(String coordinateSystem, boolean withIterationSeries, double timeBinSize) {
 		this.coordinateSystem = coordinateSystem;
 		this.withIterationSeries = withIterationSeries;
+		this.timeBinSize = timeBinSize;
+	}
+
+	public MobilityConsumptionDashboard(String coordinateSystem, boolean withIterationSeries) {
+		this(coordinateSystem, withIterationSeries, MobilityConsumptionParameters.DEFAULTS.timeBinSize());
+	}
+
+	/** Column label of the bin containing {@link #INITIAL_TIME}, in the wide tables' HH:MM format. */
+	String initialColumn() {
+		double start = Math.floor(INITIAL_TIME / timeBinSize) * timeBinSize;
+		return Time.writeTime(start, Time.TIMEFORMAT_HHMM);
 	}
 
 	@Override
@@ -120,26 +138,30 @@ public final class MobilityConsumptionDashboard implements Dashboard {
 			viz.title = "Utilisation by time bin";
 			viz.description = "Consumption over production per link and bin. Use the slider to step through the day.";
 			viz.height = 12d;
+			viz.center = data.context().getCenter();
+			viz.zoom = data.context().getMapZoomLevel();
 			viz.network = data.compute(CreateAvroNetwork.class, "network.avro");
 			viz.datasets.csvFile = data.compute(MobilityConsumptionAnalysis.class,
 				MobilityConsumptionAnalysis.UTILIZATION_WIDE);
 			viz.useSlider = true;
 			viz.display.width.dataset = "csvFile";
-			viz.display.width.columnName = "00:00";
-			viz.display.width.scaleFactor = 1;
+			viz.display.width.columnName = initialColumn();
+			viz.display.width.scaleFactor = 0.02; // 0.1 -> 5 px, 1.0 -> 50 px (the plugin's cap)
 			viz.display.color.fixedColors = "#1f77b4";
 		});
 		animated.el(Links.class, (viz, data) -> {
 			viz.title = "Excess ratio by time bin";
 			viz.description = "Share of each link's consumption caused by delay, per bin.";
 			viz.height = 12d;
+			viz.center = data.context().getCenter();
+			viz.zoom = data.context().getMapZoomLevel();
 			viz.network = data.compute(CreateAvroNetwork.class, "network.avro");
 			viz.datasets.csvFile = data.compute(MobilityConsumptionAnalysis.class,
 				MobilityConsumptionAnalysis.EXCESS_RATIO_WIDE);
 			viz.useSlider = true;
 			viz.display.width.dataset = "csvFile";
-			viz.display.width.columnName = "00:00";
-			viz.display.width.scaleFactor = 1;
+			viz.display.width.columnName = initialColumn();
+			viz.display.width.scaleFactor = 0.02; // 0.1 -> 5 px, 1.0 -> 50 px (the plugin's cap)
 			viz.display.color.fixedColors = "#d62728";
 		});
 
@@ -149,6 +171,7 @@ public final class MobilityConsumptionDashboard implements Dashboard {
 			DashboardUtils.setGridMapStandards(viz, data, coordinateSystem);
 			viz.cellSize = 250;
 			viz.valueColumn = GridRasterWriter.CONSUMPTION_KEY;
+			viz.opacityColumn = GridRasterWriter.CONSUMPTION_KEY; // hides the empty cells of the dense raster
 			viz.timeSelector = GridMap.TimeSelector.slider;
 			viz.setColorRamp(ColorScheme.Viridis, 8, false);
 			viz.file = data.compute(MobilityConsumptionAnalysis.class, MobilityConsumptionAnalysis.GRID);

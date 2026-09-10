@@ -4,7 +4,8 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.ToDoubleBiFunction;
 
 import org.apache.commons.csv.CSVPrinter;
@@ -69,14 +70,23 @@ public final class WideTableWriter {
 		return header;
 	}
 
+	/**
+	 * Writes one row for every link known to the production (the whole network) plus any link the accumulator saw
+	 * that the network lacks. Links without traffic get zeros: SimWrapper's link plugin needs a value for every
+	 * network link, otherwise the layer is not drawn.
+	 */
 	public void write(String path, MobilityConsumptionAccumulator acc, MobilityProduction mp, Value value) {
 		MobilityConsumptionParameters p = acc.getParameters();
+		Set<Id<Link>> linkIds = new TreeSet<>(mp.perLink().keySet());
+		linkIds.addAll(acc.links().keySet());
+		BinTotals empty = new BinTotals(p.binCount() + 1);
 		try (CSVPrinter printer = writer.open(path)) {
 			printer.printRecord(header(p));
-			for (Map.Entry<Id<Link>, BinTotals> e : acc.links().entrySet()) {
-				LinkBin lb = new LinkBin(e.getKey(), e.getValue(), mp, p.upscaleFactor());
+			for (Id<Link> linkId : linkIds) {
+				BinTotals totals = acc.links().getOrDefault(linkId, empty);
+				LinkBin lb = new LinkBin(linkId, totals, mp, p.upscaleFactor());
 				List<Object> row = new ArrayList<>(p.binCount() + 1);
-				row.add(e.getKey());
+				row.add(linkId);
 				for (int b = 0; b < p.binCount(); b++) {
 					row.add(value.applyAsDouble(lb, b));
 				}
