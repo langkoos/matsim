@@ -12,6 +12,11 @@ import org.junit.jupiter.api.Test;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.LinkEnterEvent;
+import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
+import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent;
+import org.matsim.core.api.experimental.events.VehicleArrivesAtFacilityEvent;
+import org.matsim.core.api.experimental.events.VehicleDepartsAtFacilityEvent;
+import org.matsim.pt.transitSchedule.api.TransitStopFacility;
 import org.matsim.api.core.v01.events.LinkLeaveEvent;
 import org.matsim.api.core.v01.events.TransitDriverStartsEvent;
 import org.matsim.api.core.v01.events.VehicleAbortsEvent;
@@ -229,6 +234,8 @@ class TraversalSegmentCollectorTest {
 			Id.create("route", TransitRoute.class), Id.create("dep", Departure.class)));
 		freeFlowLeg(c, "car");
 		assertThat(segments).hasSize(3);
+		assertThat(segments).extracting(TraversalSegment::mode).containsOnly("pt:unknown");
+		assertThat(segments).extracting(TraversalSegment::source).containsOnly(ConsumptionSource.TRANSIT);
 	}
 
 	@Test
@@ -238,5 +245,109 @@ class TraversalSegmentCollectorTest {
 		freeFlowLeg(c, "car");
 		assertThat(segments.get(1).spaceOccupied()).isCloseTo(11.12, within(1e-9));
 		assertThat(segments.get(1).freeFlowTime()).isEqualTo(101.0);
+	}
+
+	@Test
+	void carOccupancyCountsTheDriverAndPassengers() {
+		TraversalSegmentCollector c = collector(CollectorSettings.CAR_DEFAULTS);
+		Id<Person> passenger = Id.create("p2", Person.class);
+		c.handleEvent(new PersonEntersVehicleEvent(0, D, V));
+		c.handleEvent(new VehicleEntersTrafficEvent(0, D, L0, V, "car", 1.0));
+		c.handleEvent(new LinkLeaveEvent(1, V, L0));
+		c.handleEvent(new LinkEnterEvent(1, V, L1));
+		c.handleEvent(new PersonEntersVehicleEvent(51, passenger, V)); // boards half-way through the 100 s link
+		c.handleEvent(new LinkLeaveEvent(101, V, L1));
+		c.handleEvent(new LinkEnterEvent(101, V, L2));
+		c.handleEvent(new VehicleLeavesTrafficEvent(201, D, L2, V, "car", 1.0));
+		c.handleEvent(new PersonLeavesVehicleEvent(201, passenger, V));
+		c.handleEvent(new PersonLeavesVehicleEvent(201, D, V));
+		assertThat(segments).extracting(TraversalSegment::occupancy).containsExactly(1.0, 1.5, 2.0);
+		assertThat(segments).extracting(TraversalSegment::source).containsOnly(ConsumptionSource.FLOW);
+		// A vehicle nobody boarded (freight without a person event) has zero occupancy.
+		Id<Vehicle> lorry = Id.create("lorry", Vehicle.class);
+		c.handleEvent(new VehicleEntersTrafficEvent(300, D, L0, lorry, "car", 1.0));
+		c.handleEvent(new LinkLeaveEvent(301, lorry, L0));
+		c.handleEvent(new LinkEnterEvent(301, lorry, L1));
+		c.handleEvent(new LinkLeaveEvent(402, lorry, L1));
+		assertThat(segments.get(segments.size() - 1).occupancy()).isEqualTo(0.0);
+	}
+
+	@Test
+	void includedTransitVehiclesCarryPassengersNotTheDriverAndDwellIsNotExcess() {
+		VehicleType bus = VehicleUtils.createVehicleType(Id.create("Bus_veh_type", VehicleType.class));
+		CollectorSettings settings = new CollectorSettings(Set.of("car"), false, true, true, VehicleLengthSource.fixed, 1.0,
+			java.util.Map.of("Bus_veh_type", 18.25));
+		TraversalSegmentCollector c = new TraversalSegmentCollector(network(), P, settings, id -> bus, segments::add,
+			aborted::incrementAndGet);
+		Id<Person> driver = Id.create("pt_driver", Person.class);
+		Id<Person> a = Id.create("a", Person.class);
+		Id<Person> b = Id.create("b", Person.class);
+		c.handleEvent(new TransitDriverStartsEvent(0, driver, V, Id.create("line", TransitLine.class),
+			Id.create("route", TransitRoute.class), Id.create("dep", Departure.class)));
+		c.handleEvent(new PersonEntersVehicleEvent(0, driver, V)); // the driver does not count
+		c.handleEvent(new PersonEntersVehicleEvent(0, a, V));
+		c.handleEvent(new PersonEntersVehicleEvent(0, b, V));
+		c.handleEvent(new VehicleEntersTrafficEvent(0, driver, L0, V, "car", 1.0));
+		c.handleEvent(new LinkLeaveEvent(1, V, L0));
+		c.handleEvent(new LinkEnterEvent(1, V, L1));
+		// A 30 s stop on l1: arrives, one alights, departs. The link then takes 130 s instead of 100.
+		c.handleEvent(new VehicleArrivesAtFacilityEvent(50, V, Id.create("stop", TransitStopFacility.class), 0));
+		c.handleEvent(new PersonLeavesVehicleEvent(50, b, V));
+		c.handleEvent(new VehicleDepartsAtFacilityEvent(80, V, Id.create("stop", TransitStopFacility.class), 0));
+		c.handleEvent(new LinkLeaveEvent(131, V, L1));
+		c.handleEvent(new LinkEnterEvent(131, V, L2));
+		c.handleEvent(new VehicleLeavesTrafficEvent(231, driver, L2, V, "car", 1.0));
+
+		assertThat(segments).hasSize(3);
+		TraversalSegment onL1 = segments.get(1);
+		assertThat(onL1.source()).isEqualTo(ConsumptionSource.TRANSIT);
+		assertThat(onL1.mode()).isEqualTo("pt:Bus_veh_type");
+		assertThat(onL1.spaceOccupied()).isEqualTo(18.25);
+		assertThat(onL1.travelTime()).isEqualTo(130.0);
+		assertThat(onL1.freeFlowTime()).isEqualTo(101.0 + 30.0); // scheduled dwell is not excess
+		assertThat(new MobilityConsumptionCalculator(P).excess(onL1)).isEqualTo(0);
+		// two aboard for 49 s, one for 81 s: mean 1.377
+		assertThat(onL1.occupancy()).isCloseTo((2 * 49 + 1 * 81) / 130.0, within(1e-9));
+		assertThat(segments.get(2).occupancy()).isEqualTo(1.0);
+	}
+
+	@Test
+	void excludedTransitVehiclesStillDoNotCount() {
+		TraversalSegmentCollector c = collector(CollectorSettings.CAR_DEFAULTS);
+		c.handleEvent(new TransitDriverStartsEvent(0, D, V, Id.create("line", TransitLine.class),
+			Id.create("route", TransitRoute.class), Id.create("dep", Departure.class)));
+		freeFlowLeg(c, "car");
+		assertThat(segments).isEmpty();
+	}
+
+	@Test
+	void strayOccupancyAndStopEventsAndZeroDurationSegments() {
+		TraversalSegmentCollector c = collector(CollectorSettings.CAR_DEFAULTS);
+		// Leaving a vehicle nobody was tracked in, and departing a stop without arriving, are ignored.
+		c.handleEvent(new PersonLeavesVehicleEvent(5, D, V));
+		c.handleEvent(new VehicleEntersTrafficEvent(10, D, L0, V, "car", 1.0));
+		c.handleEvent(new VehicleDepartsAtFacilityEvent(11, V, Id.create("stop", TransitStopFacility.class), 0));
+		// Enters and leaves traffic in the same second: a zero-duration departure segment uses the current occupancy.
+		c.handleEvent(new VehicleLeavesTrafficEvent(10, D, L0, V, "car", 1.0));
+		assertThat(segments).hasSize(1);
+		assertThat(segments.get(0).travelTime()).isEqualTo(0);
+		assertThat(segments.get(0).occupancy()).isEqualTo(0);
+		// A passenger leaving after the leg ended clears the vehicle's occupancy record without error.
+		c.handleEvent(new PersonEntersVehicleEvent(20, D, V));
+		c.handleEvent(new PersonLeavesVehicleEvent(25, D, V));
+		c.handleEvent(new VehicleEntersTrafficEvent(30, D, L0, V, "car", 1.0));
+		c.handleEvent(new VehicleLeavesTrafficEvent(30, D, L0, V, "car", 1.0));
+		assertThat(segments.get(1).occupancy()).isEqualTo(0);
+		// A passenger alighting while the vehicle is still in traffic empties the record but keeps it.
+		c.handleEvent(new PersonEntersVehicleEvent(40, D, V));
+		c.handleEvent(new VehicleEntersTrafficEvent(40, D, L0, V, "car", 1.0));
+		c.handleEvent(new PersonLeavesVehicleEvent(45, D, V));
+		c.handleEvent(new LinkLeaveEvent(50, V, L0));
+		assertThat(segments.get(2).occupancy()).isCloseTo(0.5, within(1e-9));
+		// A stop still open when the link ends counts its dwell up to the link leave.
+		c.handleEvent(new LinkEnterEvent(50, V, L1));
+		c.handleEvent(new VehicleArrivesAtFacilityEvent(100, V, Id.create("stop", TransitStopFacility.class), 0));
+		c.handleEvent(new LinkLeaveEvent(160, V, L1));
+		assertThat(segments.get(3).freeFlowTime()).isEqualTo(101.0 + 60.0);
 	}
 }

@@ -8,6 +8,14 @@ package org.matsim.contrib.mobilityconsumption.core;
  * @param excess      metre-seconds of that consumption attributable to travel above free flow
  * @param distance    metres travelled in the bin
  * @param travelTime  seconds spent in the bin
+ * @param passengerDistance passenger-metres in the bin (distance times occupancy)
+ * @param passengerTime     passenger-seconds in the bin (travel time times occupancy)
  */
-public record BinShare(int bin, double consumption, double excess, double distance, double travelTime) {
+public record BinShare(int bin, double consumption, double excess, double distance, double travelTime,
+	double passengerDistance, double passengerTime) {
+
+	/** A share carried by one occupant. */
+	public BinShare(int bin, double consumption, double excess, double distance, double travelTime) {
+		this(bin, consumption, excess, distance, travelTime, distance, travelTime);
+	}
 }

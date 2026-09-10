@@ -21,6 +21,9 @@ class TraversalSegmentTest {
 			.isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> new TraversalSegment(Id.createLinkId("l"), v, null, "car", SegmentKind.FULL, 0, 5, 1, 1, -1))
 			.isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> new TraversalSegment(Id.createLinkId("l"), v, null, "car", SegmentKind.FULL, 0, 5, 1, 1, 1,
+			ConsumptionSource.FLOW, -1))
+			.isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> new CollectorSettings(Set.of("car"), true, true, true, VehicleLengthSource.fixed, 0))
 			.isInstanceOf(IllegalArgumentException.class);
 	}

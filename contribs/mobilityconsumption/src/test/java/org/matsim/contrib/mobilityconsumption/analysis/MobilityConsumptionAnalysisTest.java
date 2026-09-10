@@ -86,6 +86,11 @@ class MobilityConsumptionAnalysisTest {
 				.as(column).isCloseTo(Double.parseDouble(inRun.get(column)), within(1e-6));
 		}
 		assertThat(postHoc.get("segments")).isEqualTo(inRun.get("segments"));
+		// Every car in equil carries its driver: passenger-km equals vehicle-km, and the space-time per passenger-km
+		// is lambda / v + tau in metre-seconds per km, a few thousand at urban speeds.
+		assertThat(Double.parseDouble(postHoc.get("passenger_km")))
+			.isCloseTo(Double.parseDouble(postHoc.get("vehicle_km")), within(1e-6));
+		assertThat(Double.parseDouble(postHoc.get("mc_m_s_per_passenger_km"))).isBetween(1000.0, 20000.0);
 
 		List<CSVRecord> inRunLinks = read(Path.of(run, "output_mobilityConsumption_links.csv.gz"));
 		List<CSVRecord> postHocLinks = read(Path.of(out, "mc_links_daily.csv"));

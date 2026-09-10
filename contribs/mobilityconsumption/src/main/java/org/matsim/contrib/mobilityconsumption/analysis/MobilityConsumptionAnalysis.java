@@ -2,7 +2,9 @@ package org.matsim.contrib.mobilityconsumption.analysis;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
@@ -99,6 +101,8 @@ public class MobilityConsumptionAnalysis implements MATSimAppCommand {
 	private VehicleLengthSource vehicleLengthSource;
 	@CommandLine.Option(names = "--vehicles", description = "Vehicles file, needed for vehicleType lengths and maximum velocities.")
 	private String vehiclesFile;
+	@CommandLine.Option(names = "--space-by-vehicle-type", description = "Road space in m per vehicle type id, e.g. Bus_veh_type=18.25,Tram_veh_type=36; overrides the length source for those types.", split = ",")
+	private Map<String, Double> spaceByVehicleType = new HashMap<>();
 	@CommandLine.Option(names = "--time-step-size", description = "Mobsim time step in s.", defaultValue = "1")
 	private double timeStepSize;
 	@CommandLine.Option(names = "--grid-size", description = "Cell size in m of the animated grid raster; 0 disables it.", defaultValue = "250")
@@ -116,7 +120,7 @@ public class MobilityConsumptionAnalysis implements MATSimAppCommand {
 		MobilityConsumptionParameters parameters = new MobilityConsumptionParameters(vehicleLength, vehicleSpacing,
 			reactionTime, timeBinSize, analysisStart, analysisEnd, sample.getSample());
 		CollectorSettings settings = new CollectorSettings(modes, excludeTransit, departureSegments, arrivalSegments,
-			vehicleLengthSource, timeStepSize);
+			vehicleLengthSource, timeStepSize, spaceByVehicleType);
 
 		MobilityConsumptionAccumulator accumulator = new MobilityConsumptionAccumulator(parameters);
 		Set<Id<Link>> included = includedLinks(network);
@@ -180,7 +184,7 @@ public class MobilityConsumptionAnalysis implements MATSimAppCommand {
 			printer.printRecord("Excess ratio", format(row.get(4)), "percent");
 			printer.printRecord("Mobility production [km·h]", format(row.get(5)), "layer-group");
 			printer.printRecord("Consumption / production", format(row.get(6)), "gauge-high");
-			printer.printRecord("Vehicle-km", format(row.get(7)), "car");
+			printer.printRecord("Passenger-km", format(row.get(9)), "users");
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}

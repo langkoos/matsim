@@ -28,15 +28,17 @@ import org.matsim.core.utils.misc.Time;
 public final class MobilityConsumptionWriter {
 
 	public static final List<String> LINK_HEADER = List.of("link_id", "length_m", "lanes", "mc_kmh", "mc_excess_kmh", "mp_kmh",
-		"utilization", "excess_ratio", "vehicle_km", "vehicle_h", "segments");
+		"utilization", "excess_ratio", "vehicle_km", "vehicle_h", "passenger_km", "passenger_h", "segments");
 	public static final List<String> LINK_BIN_HEADER = List.of("link_id", "bin", "bin_start", "time", "mc_kmh", "mc_excess_kmh",
-		"mp_kmh", "utilization", "excess_ratio", "vehicle_km", "vehicle_h", "segments");
+		"mp_kmh", "utilization", "excess_ratio", "vehicle_km", "vehicle_h", "passenger_km", "passenger_h", "segments");
 	public static final List<String> NETWORK_BIN_HEADER = List.of("mode", "bin", "bin_start", "time", "mc_kmh", "mc_excess_kmh",
-		"mp_kmh", "utilization", "excess_ratio", "vehicle_km", "vehicle_h", "segments");
+		"mp_kmh", "utilization", "excess_ratio", "vehicle_km", "vehicle_h", "passenger_km", "passenger_h",
+		"mc_m_s_per_passenger_km", "segments");
 	public static final List<String> STATS_HEADER = List.of("iteration", "sample_size", "mc_kmh", "mc_excess_kmh", "excess_ratio",
-		"mp_kmh", "mc_mp_ratio", "vehicle_km", "vehicle_h", "segments", "aborted_segments");
-	public static final List<String> SEGMENT_HEADER = List.of("vehicle_id", "driver_id", "link_id", "mode", "kind", "enter_time",
-		"leave_time", "distance_m", "free_flow_time_s", "space_occupied_m", "mc_kmh", "mc_excess_kmh");
+		"mp_kmh", "mc_mp_ratio", "vehicle_km", "vehicle_h", "passenger_km", "passenger_h", "mc_m_s_per_passenger_km",
+		"segments", "aborted_segments");
+	public static final List<String> SEGMENT_HEADER = List.of("vehicle_id", "driver_id", "link_id", "mode", "source", "kind",
+		"enter_time", "leave_time", "distance_m", "free_flow_time_s", "space_occupied_m", "occupancy", "mc_kmh", "mc_excess_kmh");
 	public static final String ALL_MODES = "all";
 	public static final String OUTSIDE = "outside";
 
@@ -84,7 +86,8 @@ public final class MobilityConsumptionWriter {
 				printer.printRecord(e.getKey(), link == null ? "" : link.getLength(),
 					link == null ? "" : link.getNumberOfLanes(), kmh(mc), kmh(excess), kmh(production),
 					ratio(mc, production), ratio(excess, mc), up * t.totalDistance() / 1000.0,
-					up * t.totalTravelTime() / 3600.0, t.totalSegments());
+					up * t.totalTravelTime() / 3600.0, up * t.totalPassengerDistance() / 1000.0,
+					up * t.totalPassengerTime() / 3600.0, t.totalSegments());
 			}
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
@@ -108,7 +111,8 @@ public final class MobilityConsumptionWriter {
 					double production = mp.link(e.getKey(), b);
 					printer.printRecord(e.getKey(), binLabel(p, b), binStart(p, b), binTime(p, b), kmh(mc),
 						kmh(excess), kmh(production), ratio(mc, production), ratio(excess, mc),
-						up * t.distance(b) / 1000.0, up * t.travelTime(b) / 3600.0, t.segments(b));
+						up * t.distance(b) / 1000.0, up * t.travelTime(b) / 3600.0,
+						up * t.passengerDistance(b) / 1000.0, up * t.passengerTime(b) / 3600.0, t.segments(b));
 				}
 			}
 		} catch (IOException e) {
@@ -142,7 +146,8 @@ public final class MobilityConsumptionWriter {
 			double production = mp.network(b);
 			printer.printRecord(mode, binLabel(p, b), binStart(p, b), binTime(p, b), kmh(mc), kmh(excess),
 				kmh(production), ratio(mc, production), ratio(excess, mc), up * t.distance(b) / 1000.0,
-				up * t.travelTime(b) / 3600.0, t.segments(b));
+				up * t.travelTime(b) / 3600.0, up * t.passengerDistance(b) / 1000.0, up * t.passengerTime(b) / 3600.0,
+				perPassengerKm(mc, up * t.passengerDistance(b)), t.segments(b));
 		}
 	}
 
@@ -164,6 +169,9 @@ public final class MobilityConsumptionWriter {
 		row.add(ratio(mc, production));
 		row.add(up * t.totalDistance() / 1000.0);
 		row.add(up * t.totalTravelTime() / 3600.0);
+		row.add(up * t.totalPassengerDistance() / 1000.0);
+		row.add(up * t.totalPassengerTime() / 3600.0);
+		row.add(perPassengerKm(mc, up * t.totalPassengerDistance()));
 		row.add(t.totalSegments());
 		row.add(acc.abortedSegments());
 		return row;
@@ -173,9 +181,17 @@ public final class MobilityConsumptionWriter {
 	public static void writeSegment(CSVPrinter printer, TraversalSegment s, MobilityConsumptionCalculator calc)
 			throws IOException {
 		double up = calc.getParameters().upscaleFactor();
-		printer.printRecord(s.vehicleId(), s.driverId() == null ? "" : s.driverId(), s.linkId(), s.mode(), s.kind(),
-			s.enterTime(), s.leaveTime(), s.distance(), s.freeFlowTime(), s.spaceOccupied(),
+		printer.printRecord(s.vehicleId(), s.driverId() == null ? "" : s.driverId(), s.linkId(), s.mode(), s.source(),
+			s.kind(), s.enterTime(), s.leaveTime(), s.distance(), s.freeFlowTime(), s.spaceOccupied(), s.occupancy(),
 			kmh(up * calc.consumption(s)), kmh(up * calc.excess(s)));
+	}
+
+	/**
+	 * Space-time consumed per passenger-kilometre, in metre-seconds per km: for a lone driver at speed v this is
+	 * 1000 * (lambda / v + tau), about 2,000 at 50 km/h. Empty when no passenger-distance was produced.
+	 */
+	static Object perPassengerKm(double consumptionMetreSeconds, double passengerMetres) {
+		return passengerMetres > 0 ? consumptionMetreSeconds / (passengerMetres / 1000.0) : "";
 	}
 
 	static double kmh(double metreSeconds) {

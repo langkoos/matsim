@@ -43,7 +43,8 @@ public final class MobilityConsumptionCalculator {
 		double duration = segment.travelTime();
 		List<BinShare> shares = new ArrayList<>();
 		if (duration <= 0) {
-			shares.add(new BinShare(parameters.binIndex(segment.enterTime()), total, totalExcess, segment.distance(), 0));
+			shares.add(new BinShare(parameters.binIndex(segment.enterTime()), total, totalExcess, segment.distance(), 0,
+				segment.distance() * segment.occupancy(), 0));
 			return shares;
 		}
 		double cursor = segment.enterTime();
@@ -52,8 +53,9 @@ public final class MobilityConsumptionCalculator {
 			double boundary = nextBoundary(cursor, bin);
 			double end = Math.min(boundary, segment.leaveTime());
 			double fraction = (end - cursor) / duration;
-			shares.add(new BinShare(bin, fraction * total, fraction * totalExcess, fraction * segment.distance(),
-				end - cursor));
+			double distance = fraction * segment.distance();
+			shares.add(new BinShare(bin, fraction * total, fraction * totalExcess, distance, end - cursor,
+				distance * segment.occupancy(), (end - cursor) * segment.occupancy()));
 			cursor = end;
 		}
 		return shares;

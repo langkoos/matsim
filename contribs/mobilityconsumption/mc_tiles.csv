@@ -3,4 +3,4 @@ Excess consumption [km·h],0.0503,clock
 Excess ratio,0.0156,percent
 Mobility production [km·h],"5,040",layer-group
 Consumption / production,0.0006,gauge-high
-Vehicle-km,"7,000",car
+Passenger-km,"7,000",users

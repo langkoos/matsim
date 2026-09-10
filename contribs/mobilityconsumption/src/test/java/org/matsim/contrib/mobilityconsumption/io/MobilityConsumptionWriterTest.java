@@ -124,7 +124,8 @@ class MobilityConsumptionWriterTest {
 		}
 		List<String> lines = Files.readAllLines(Path.of(file));
 		assertThat(lines).hasSize(3);
-		assertThat(lines.get(1)).startsWith("v,,ab,car,FULL,0.0,100.0,1000.0,100.0,11.12");
+		assertThat(lines.get(1)).startsWith("v,,ab,car,FLOW,FULL,0.0,100.0,1000.0,100.0,11.12");
+		assertThat(lines.get(1)).contains(",1.0,"); // occupancy of a plain segment
 		assertThat(lines.get(2)).contains(",FULL,100.0,300.0,");
 		assertThat(ConsumptionSource.values()).contains(ConsumptionSource.FLOW);
 	}

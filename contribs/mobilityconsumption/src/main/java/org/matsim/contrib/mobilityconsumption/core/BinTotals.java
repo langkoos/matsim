@@ -12,6 +12,8 @@ public final class BinTotals {
 	private final double[] excess;
 	private final double[] distance;
 	private final double[] travelTime;
+	private final double[] passengerDistance;
+	private final double[] passengerTime;
 	private final long[] segments;
 
 	public BinTotals(int binCountIncludingOutside) {
@@ -19,6 +21,8 @@ public final class BinTotals {
 		this.excess = new double[binCountIncludingOutside];
 		this.distance = new double[binCountIncludingOutside];
 		this.travelTime = new double[binCountIncludingOutside];
+		this.passengerDistance = new double[binCountIncludingOutside];
+		this.passengerTime = new double[binCountIncludingOutside];
 		this.segments = new long[binCountIncludingOutside];
 	}
 
@@ -27,6 +31,8 @@ public final class BinTotals {
 		excess[share.bin()] += share.excess();
 		distance[share.bin()] += share.distance();
 		travelTime[share.bin()] += share.travelTime();
+		passengerDistance[share.bin()] += share.passengerDistance();
+		passengerTime[share.bin()] += share.passengerTime();
 	}
 
 	/** Counts a segment against the bin in which it started. */
@@ -40,6 +46,8 @@ public final class BinTotals {
 		Arrays.fill(excess, 0);
 		Arrays.fill(distance, 0);
 		Arrays.fill(travelTime, 0);
+		Arrays.fill(passengerDistance, 0);
+		Arrays.fill(passengerTime, 0);
 		Arrays.fill(segments, 0);
 	}
 
@@ -65,6 +73,22 @@ public final class BinTotals {
 
 	public long segments(int bin) {
 		return segments[bin];
+	}
+
+	public double passengerDistance(int bin) {
+		return passengerDistance[bin];
+	}
+
+	public double passengerTime(int bin) {
+		return passengerTime[bin];
+	}
+
+	public double totalPassengerDistance() {
+		return sum(passengerDistance);
+	}
+
+	public double totalPassengerTime() {
+		return sum(passengerTime);
 	}
 
 	public double totalConsumption() {
