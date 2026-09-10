@@ -52,4 +52,21 @@ class MobilityConsumptionAccumulatorTest {
 		assertThat(acc.network().totalSegments()).isEqualTo(0);
 		assertThat(acc.abortedSegments()).isEqualTo(0);
 	}
+
+	@Test
+	void transitVehiclesAreNotSampledButTheirPassengersAre() {
+		MobilityConsumptionParameters tenPercent = new MobilityConsumptionParameters(4.87, 6.25, 1.23, 900, 0, 86400, 0.1);
+		MobilityConsumptionAccumulator acc = new MobilityConsumptionAccumulator(tenPercent);
+		TraversalSegment bus = new TraversalSegment(Id.createLinkId("a"), Id.create("bus", Vehicle.class), null, "pt:bus",
+			SegmentKind.FULL, 0, 100, 1000, 100, 18.25, ConsumptionSource.TRANSIT, 3.0);
+		acc.add(bus);
+		double raw = acc.getCalculator().consumption(bus);
+		// Written values are raw * 10; the bus itself must come out at 1x, its 3 sampled passengers at 30.
+		assertThat(acc.network().totalConsumption() * tenPercent.upscaleFactor()).isCloseTo(raw, within(1e-9));
+		assertThat(acc.network().totalDistance() * tenPercent.upscaleFactor()).isCloseTo(1000, within(1e-9));
+		assertThat(acc.network().totalPassengerDistance() * tenPercent.upscaleFactor()).isCloseTo(30000, within(1e-9));
+		TraversalSegment car = seg("a", "car", 0, 100, 1000, 100);
+		acc.add(car);
+		assertThat(acc.modes().get("car").totalConsumption()).isCloseTo(acc.getCalculator().consumption(car), within(1e-9));
+	}
 }
