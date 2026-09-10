@@ -61,7 +61,7 @@ historic debt to be repaired in this setup change:
   local filter is empty; any exclusion added must be narrow and documented.
 - Tests permit no failures.
 - JaCoCo requires at least 93% line coverage and 93% branch coverage. The
-  suite measured 95.07% line coverage and 96.46% branch coverage on
+  suite measured 95.63% line coverage and 97.92% branch coverage on
   Java 25 (2026-09-10).
 
 In addition, `quality/metrics-baseline.properties` records a comparable quality

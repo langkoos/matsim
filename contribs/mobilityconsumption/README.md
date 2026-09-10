@@ -135,6 +135,22 @@ a daily link map (width consumption, colour excess ratio); two link maps with a 
 utilisation and excess-ratio wide tables; a grid map with a time slider; and the per-link utilisation
 versus excess scatter of the paper's figure 5.
 
+## Known limitations
+
+- Small samples discretise heavily: one simulated vehicle stands for `1 / sampleSize` vehicles, so a
+  single departure-buffer wait on a short link can push that link's utilisation far above 1 in a bin.
+  Judge utilisation and excess ratio at link level with the sample size in mind, as the paper advises;
+  network-level values are robust.
+- SimWrapper's `links` plugin (the time-animated maps) parses the link id column as 32-bit floats, so
+  networks with large numeric link ids (above about 16 million, as in the Kelheim example) are matched
+  to the wrong rows. Networks with small or non-numeric ids are unaffected. The daily `map` panel joins
+  ids as strings and is not affected. Worth reporting to SimWrapper; until it is fixed, use the grid
+  map and the daily map for such networks.
+- The dashboard was checked in SimWrapper 4.3.9 served locally: tiles, time-of-day charts, the daily
+  link map, the grid map with its time slider and the scatter render; the two animated link maps load
+  their data and slider but drew no lines in that build (WebGL buffer errors in the plugin), so they
+  remain unverified visually.
+
 ## Development
 
 The module is gated: see `QUALITY.md`. Run `scripts/quality.sh` before committing; the pre-commit hook

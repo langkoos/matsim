@@ -1,6 +1,7 @@
 # Mobility consumption contrib: implementation plan
 
-Status: draft for approval, 2026-09-10. Branch `mobility-consumption` in `~/matsim`, based on
+Status: implemented 2026-09-10 (phases 0 to 6 below), on branch `mobility-consumption`. What was
+verified and what was not is recorded in `README.md` under "Known limitations". Branch `mobility-consumption` in `~/matsim`, based on
 `upstream/main` (matsim-org/matsim-libs, 2026-09-09). The `langkoos/matsim` fork's own `master` was
 18 months behind upstream and is not used as a base.
 
