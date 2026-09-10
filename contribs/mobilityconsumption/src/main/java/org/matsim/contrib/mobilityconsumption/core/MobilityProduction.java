@@ -2,6 +2,7 @@ package org.matsim.contrib.mobilityconsumption.core;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 import org.matsim.api.core.v01.Id;
@@ -11,7 +12,9 @@ import org.matsim.api.core.v01.network.Network;
 /**
  * Road space-time supplied by the network: per link and bin {@code length * lanes(t) * binLength}, in
  * metre-seconds (equations 6 and 12 of Ai et al.). Lanes are read at the bin start, so time-variant
- * networks are honoured. Production is never scaled by sample size; consumption is scaled up instead.
+ * networks are honoured. Only links that allow at least one of the analysed network modes supply space:
+ * transit-only or bicycle-only links are not road space a car could use. Production is never scaled by
+ * sample size; consumption is scaled up instead.
  */
 public final class MobilityProduction {
 
@@ -19,10 +22,21 @@ public final class MobilityProduction {
 	private final Map<Id<Link>, double[]> perLink = new TreeMap<>();
 	private final double[] network;
 
+	/** Production over every link of the network, regardless of allowed modes. */
 	public MobilityProduction(Network net, MobilityConsumptionParameters parameters) {
+		this(net, parameters, Set.of());
+	}
+
+	/**
+	 * @param modes network modes whose links supply road space; an empty set means every link
+	 */
+	public MobilityProduction(Network net, MobilityConsumptionParameters parameters, Set<String> modes) {
 		this.parameters = parameters;
 		this.network = new double[parameters.binCount() + 1];
 		for (Link link : net.getLinks().values()) {
+			if (!modes.isEmpty() && Collections.disjoint(link.getAllowedModes(), modes)) {
+				continue;
+			}
 			double[] bins = computeBins(link, parameters);
 			perLink.put(link.getId(), bins);
 			for (int b = 0; b < bins.length; b++) {

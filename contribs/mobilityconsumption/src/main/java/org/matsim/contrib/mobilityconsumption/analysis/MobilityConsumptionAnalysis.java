@@ -135,7 +135,7 @@ public class MobilityConsumptionAnalysis implements MATSimAppCommand {
 		log.info("Collected {} segments on {} links, {} aborted", accumulator.network().totalSegments(),
 			accumulator.links().size(), accumulator.abortedSegments());
 
-		MobilityProduction production = new MobilityProduction(network, parameters);
+		MobilityProduction production = new MobilityProduction(network, parameters, modes);
 		MobilityConsumptionWriter writer = new MobilityConsumptionWriter(delimiter);
 		writer.writeLinks(output.getPath(LINKS_DAILY).toString(), accumulator, production, network);
 		writer.writeLinkBins(output.getPath(LINKS_BINS).toString(), accumulator, production);

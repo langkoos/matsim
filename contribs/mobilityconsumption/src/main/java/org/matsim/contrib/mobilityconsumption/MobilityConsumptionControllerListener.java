@@ -72,7 +72,8 @@ public final class MobilityConsumptionControllerListener implements IterationSta
 	/** Production is computed once; the network does not change between iterations. */
 	public MobilityProduction getProduction() {
 		if (production == null) {
-			production = new MobilityProduction(scenario.getNetwork(), accumulator.getParameters());
+			production = new MobilityProduction(scenario.getNetwork(), accumulator.getParameters(),
+				configGroup.getNetworkModes());
 		}
 		return production;
 	}

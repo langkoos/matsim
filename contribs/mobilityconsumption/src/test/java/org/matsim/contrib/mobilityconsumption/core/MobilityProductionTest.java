@@ -45,4 +45,17 @@ class MobilityProductionTest {
 		assertThat(mp.link(ab, 2)).isEqualTo(1000 * 2 * 500);
 		assertThat(mp.linkTotal(ab)).isEqualTo(1000 * 2 * 2500);
 	}
+
+	@Test
+	void onlyLinksAllowingAnAnalysedModeSupplySpace() {
+		Network net = twoLinkNetwork();
+		net.getLinks().get(Id.createLinkId("bc")).setAllowedModes(java.util.Set.of("pt"));
+		MobilityConsumptionParameters p = MobilityConsumptionParameters.DEFAULTS;
+		MobilityProduction cars = new MobilityProduction(net, p, java.util.Set.of("car"));
+		assertThat(cars.linkTotal(Id.createLinkId("bc"))).isEqualTo(0);
+		assertThat(cars.perLink()).containsOnlyKeys(Id.createLinkId("ab"));
+		assertThat(cars.networkTotal()).isCloseTo(1000 * 2 * 86400.0, within(1e-6));
+		MobilityProduction all = new MobilityProduction(net, p);
+		assertThat(all.networkTotal()).isCloseTo((1000 * 2 + 500) * 86400.0, within(1e-6));
+	}
 }
